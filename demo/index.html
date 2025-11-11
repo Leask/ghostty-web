@@ -605,6 +605,7 @@
 
         // Fit terminal to container
         fitAddon.fit();
+        console.log(`After fit(): Terminal size is ${term.cols}x${term.rows}`);
 
         // Handle window resize
         window.addEventListener('resize', () => {

@@ -84,7 +84,14 @@ const server = Bun.serve({
     const url = new URL(req.url);
     
     if (url.pathname === '/ws') {
-      const success = server.upgrade(req);
+      // Parse terminal size from query parameters before upgrade
+      const cols = parseInt(url.searchParams.get('cols') || '80');
+      const rows = parseInt(url.searchParams.get('rows') || '24');
+      
+      // Pass size data to WebSocket via upgrade data
+      const success = server.upgrade(req, {
+        data: { cols, rows }
+      });
       if (success) {
         return undefined;
       }
@@ -103,11 +110,9 @@ const server = Bun.serve({
   },
 
   websocket: {
-    open(ws, req) {
-      // Get terminal size from query parameters  
-      const url = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`);
-      const cols = parseInt(url.searchParams.get('cols') || '80');
-      const rows = parseInt(url.searchParams.get('rows') || '24');
+    open(ws) {
+      // Get terminal size from WebSocket data (set during upgrade)
+      const { cols, rows } = (ws.data as any) || { cols: 80, rows: 24 };
       
       console.log(`Client requested terminal size: ${cols}x${rows}`);
       

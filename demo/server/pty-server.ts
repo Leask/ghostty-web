@@ -170,17 +170,24 @@ const server = Bun.serve({
         sessions.delete(ws);
       });
 
-      // Send initial welcome message and test WebSocket
-      console.log(`[${session.id}] Sending welcome message to client`);
-      ws.send('TEST: WebSocket is working!\r\n');
-      ws.send('\x1b[1;36m╔══════════════════════════════════════════════════════════════╗\x1b[0m\r\n');
-      ws.send('\x1b[1;36m║\x1b[0m  \x1b[1;32mWelcome to Ghostty Terminal!\x1b[0m                             \x1b[1;36m║\x1b[0m\r\n');
-      ws.send('\x1b[1;36m║\x1b[0m                                                              \x1b[1;36m║\x1b[0m\r\n');
-      ws.send('\x1b[1;36m║\x1b[0m  You now have a real shell session with full PTY support.   \x1b[1;36m║\x1b[0m\r\n');
-      ws.send('\x1b[1;36m║\x1b[0m  Try: \x1b[1;33mls\x1b[0m, \x1b[1;33mcd\x1b[0m, \x1b[1;33mtop\x1b[0m, \x1b[1;33mvim\x1b[0m, or any command!              \x1b[1;36m║\x1b[0m\r\n');
-      ws.send('\x1b[1;36m╚══════════════════════════════════════════════════════════════╝\x1b[0m\r\n');
-      ws.send('\r\n');
-      console.log(`[${session.id}] Welcome message sent`);
+      // Send stty command to resize the PTY
+      // This runs inside the shell and sets the actual PTY size
+      console.log(`[${session.id}] Setting PTY size via stty`);
+      shell.stdin.write(`stty cols ${cols} rows ${rows}\n`);
+      
+      // Wait a bit for stty to execute, then send welcome
+      setTimeout(() => {
+        console.log(`[${session.id}] Sending welcome message to client`);
+        ws.send('TEST: WebSocket is working!\r\n');
+        ws.send('\x1b[1;36m╔══════════════════════════════════════════════════════════════╗\x1b[0m\r\n');
+        ws.send('\x1b[1;36m║\x1b[0m  \x1b[1;32mWelcome to Ghostty Terminal!\x1b[0m                             \x1b[1;36m║\x1b[0m\r\n');
+        ws.send('\x1b[1;36m║\x1b[0m                                                              \x1b[1;36m║\x1b[0m\r\n');
+        ws.send('\x1b[1;36m║\x1b[0m  You now have a real shell session with full PTY support.   \x1b[1;36m║\x1b[0m\r\n');
+        ws.send('\x1b[1;36m║\x1b[0m  Try: \x1b[1;33mls\x1b[0m, \x1b[1;33mcd\x1b[0m, \x1b[1;33mtop\x1b[0m, \x1b[1;33mvim\x1b[0m, or any command!              \x1b[1;36m║\x1b[0m\r\n');
+        ws.send('\x1b[1;36m╚══════════════════════════════════════════════════════════════╝\x1b[0m\r\n');
+        ws.send('\r\n');
+        console.log(`[${session.id}] Welcome message sent`);
+      }, 100);
     },
 
     message(ws, message) {

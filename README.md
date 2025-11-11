@@ -7,55 +7,120 @@ A terminal emulator that integrates [Ghostty's](https://github.com/ghostty-org/g
 This repository provides a **foundation for building web-based terminals** using Ghostty's production-tested VT100 parser compiled to WebAssembly.
 
 **What's implemented:**
+- ✅ Full terminal emulator with screen buffer, VT parser, canvas renderer
 - ✅ TypeScript wrapper for libghostty-vt WASM API
-- ✅ SGR parser (ANSI colors and text styles)
+- ✅ SGR parser (ANSI colors, 256-color, RGB true color)
 - ✅ Key encoder (keyboard events → escape sequences)
-- ✅ Demo showing parser in action
+- ✅ FitAddon for responsive terminal sizing
+- ✅ Interactive demos (file browser, color showcase)
+- ✅ xterm.js-compatible API
 
-**What's missing (TODO):**
-- ❌ Terminal screen buffer
-- ❌ Canvas rendering
-- ❌ VT100 state machine
-- ❌ PTY connection
-- ❌ Scrollback, selection, clipboard
+**MVP Complete!** See demos below.
 
 ## Quick Start
 
+### Run the Terminal
+
+**Shell Terminal** (requires server)
+
 ```bash
-./run-demo.sh
-# Opens: http://localhost:8000/examples/sgr-demo.html
+# Terminal 1: Start PTY shell server
+cd demo/server
+bun install
+bun run start
+
+# Terminal 2: Start web server (from project root)
+bun run dev
+
+# Open: http://localhost:8000/demo/
 ```
 
-The script will automatically:
-1. Check if `ghostty-vt.wasm` exists
-2. Build it from Ghostty source if needed
-3. Start an HTTP server
-4. Show you the URL to open
+This provides a **real persistent shell session**! You can:
+- Use `cd` and it persists between commands
+- Run interactive programs like `vim`, `nano`, `top`, `htop`
+- Use tab completion and command history (↑/↓)
+- Use pipes, redirects, and background jobs
+- Access all your shell aliases and environment
+
+**Alternative: Command-by-Command Mode**
+
+For the original file browser (executes each command separately):
+```bash
+cd demo/server
+bun run file-browser
+```
+
+**Remote Access:** If you're accessing via a forwarded hostname (e.g., `mux.coder`), make sure to forward both ports:
+- Port 8000 (web server - Vite)
+- Port 3001 (WebSocket server)
+
+The terminal will automatically connect to the WebSocket using the same hostname you're accessing the page from.
+
+**Colors Demo** (no server needed)
+
+```bash
+bun run dev
+# Open: http://localhost:8000/demo/colors-demo.html
+```
+
+See all ANSI colors (16, 256, RGB) and text styles in action.
 
 ## Usage
 
+### Basic Terminal
+
 ```typescript
-import { Ghostty, SgrAttributeTag, KeyAction, Key, Mods } from './lib/ghostty.ts';
+import { Terminal } from './lib/index.ts';
+import { FitAddon } from './lib/addons/fit.ts';
 
-// Load WASM
-const ghostty = await Ghostty.load('./ghostty-vt.wasm');
-
-// Parse colors (ESC[1;31m → Bold + Red)
-const parser = ghostty.createSgrParser();
-for (const attr of parser.parse([1, 31])) {
-  if (attr.tag === SgrAttributeTag.BOLD) console.log('Bold!');
-  if (attr.tag === SgrAttributeTag.FG_8) console.log('Red:', attr.color);
-}
-
-// Encode keyboard (Ctrl+A → 0x01)
-const encoder = ghostty.createKeyEncoder();
-const bytes = encoder.encode({
-  action: KeyAction.PRESS,
-  key: Key.A,
-  mods: Mods.CTRL,
+// Create terminal
+const term = new Terminal({
+  cols: 80,
+  rows: 24,
+  cursorBlink: true,
+  theme: {
+    background: '#1e1e1e',
+    foreground: '#d4d4d4',
+  }
 });
-// Send bytes to PTY
+
+// Add FitAddon for responsive sizing
+const fitAddon = new FitAddon();
+term.loadAddon(fitAddon);
+
+// Open in container
+await term.open(document.getElementById('terminal'));
+fitAddon.fit();
+
+// Write output (supports ANSI colors)
+term.write('Hello, World!\r\n');
+term.write('\x1b[1;32mGreen bold text\x1b[0m\r\n');
+
+// Handle user input
+term.onData(data => {
+  console.log('User typed:', data);
+  // Send to backend, echo, etc.
+});
 ```
+
+### WebSocket Integration
+
+```typescript
+const ws = new WebSocket('ws://localhost:3001/ws');
+
+// Send user input to backend
+term.onData(data => {
+  ws.send(JSON.stringify({ type: 'input', data }));
+});
+
+// Display backend output
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  term.write(msg.data);
+};
+```
+
+**Full API Documentation:** [docs/API.md](docs/API.md)
 
 ## Why This Approach?
 
@@ -73,28 +138,59 @@ const bytes = encoder.encode({
 ## Architecture
 
 ```
-Your Terminal (TypeScript)
-├─ Screen buffer (2D array)
-├─ Canvas rendering
-├─ Keyboard/mouse events
-└─ PTY connection
-    │
-    ▼
-Ghostty WASM (this repo)
-├─ Parse colors: ESC[1;31m → Bold + Red
-└─ Encode keys: Ctrl+A → 0x01
-    │
-    ▼
-libghostty-vt.wasm (122 KB)
-└─ Production VT100 parser
+┌─────────────────────────────────────────┐
+│  Terminal (lib/terminal.ts)             │
+│  - Public xterm.js-compatible API       │
+│  - Event handling (onData, onResize)    │
+└───────────┬─────────────────────────────┘
+            │
+            ├─► ScreenBuffer (lib/buffer.ts)
+            │   - 2D grid, cursor, scrollback
+            │
+            ├─► VTParser (lib/vt-parser.ts)
+            │   - ANSI escape sequence parsing
+            │   └─► Ghostty WASM (SGR parser)
+            │
+            ├─► CanvasRenderer (lib/renderer.ts)
+            │   - Canvas-based rendering
+            │   - 60 FPS, supports all colors
+            │
+            └─► InputHandler (lib/input-handler.ts)
+                - Keyboard events → escape codes
+                └─► Ghostty WASM (Key encoder)
+
+WebSocket Server (server/file-browser-server.ts)
+└─► Executes shell commands (ls, cd, cat, etc.)
 ```
 
-## Files
+## Project Structure
 
-- `lib/ghostty.ts` - TypeScript wrapper for WASM
-- `lib/types.ts` - Type definitions
-- `examples/sgr-demo.html` - Interactive demo
-- `AGENTS.md` - Implementation guide for building the terminal
+```
+├── lib/
+│   ├── terminal.ts       - Main Terminal class (xterm.js-compatible)
+│   ├── buffer.ts         - Screen buffer with scrollback
+│   ├── vt-parser.ts      - VT100/ANSI escape sequence parser
+│   ├── renderer.ts       - Canvas-based renderer
+│   ├── input-handler.ts  - Keyboard input handling
+│   ├── ghostty.ts        - Ghostty WASM wrapper
+│   ├── types.ts          - TypeScript type definitions
+│   ├── interfaces.ts     - xterm.js-compatible interfaces
+│   └── addons/
+│       └── fit.ts        - FitAddon for responsive sizing
+│
+├── demo/
+│   ├── index.html        - File browser terminal
+│   ├── colors-demo.html  - ANSI colors showcase
+│   └── server/
+│       ├── file-browser-server.ts - WebSocket server
+│       ├── package.json
+│       └── start.sh      - Startup script (auto-kills port conflicts)
+│
+├── docs/
+│   └── API.md            - Complete API documentation
+│
+└── ghostty-vt.wasm       - Ghostty VT100 parser (122 KB)
+```
 
 ## Building
 
@@ -119,13 +215,30 @@ zig build lib-vt -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall
 # Output: zig-out/bin/ghostty-vt.wasm (122 KB)
 ```
 
-## Next Steps
+## Testing
 
-See **[AGENTS.md](./AGENTS.md)** for:
-- How to implement the terminal
-- Code examples for screen buffer, rendering
-- VT100 state machine guide
-- Testing instructions
+Run the test suite:
+
+```bash
+bun test                # Run all tests
+bun test --watch        # Watch mode
+bun run typecheck       # Type checking
+bun run build           # Build distribution
+```
+
+**Test Coverage:**
+- ✅ ScreenBuffer (63 tests, 163 assertions)
+- ✅ VTParser (45 tests)
+- ✅ CanvasRenderer (11 tests)
+- ✅ InputHandler (35 tests)
+- ✅ Terminal integration (25 tests)
+- ✅ FitAddon (12 tests)
+
+## Documentation
+
+- **[API Documentation](docs/API.md)** - Complete API reference
+- **[AGENTS.md](AGENTS.md)** - Implementation guide for developers
+- **[roadmap.md](roadmap.md)** - Project roadmap and task breakdown
 
 ## Links
 

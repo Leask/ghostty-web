@@ -8,6 +8,14 @@ A web-based terminal emulator that integrates [Ghostty's](https://github.com/gho
 npm install @coder/ghostty-web
 ```
 
+Or install from GitHub:
+
+```bash
+npm install github:coder/ghostty-web
+```
+
+**Note:** Git installs will auto-build during `postinstall` (requires Bun).
+
 ## Quick Start
 
 ```typescript

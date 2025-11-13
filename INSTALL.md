@@ -10,6 +10,18 @@ bun add @coder/ghostty-web
 yarn add @coder/ghostty-web
 ```
 
+### Installing from Git
+
+You can install directly from GitHub:
+
+```bash
+npm install github:coder/ghostty-web
+# or
+bun add github:coder/ghostty-web
+```
+
+**Note:** When installing from git, the package automatically builds itself via a `postinstall` script. This requires Bun to be installed and may take a few seconds during installation.
+
 ## Basic Usage
 
 ```typescript

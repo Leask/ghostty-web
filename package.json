@@ -57,7 +57,8 @@
     "fmt:fix": "prettier --write .",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "prepublishOnly": "bun run test && bun run build"
+    "prepublishOnly": "bun run test && bun run build",
+    "postinstall": "[ -d dist ] || bun run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

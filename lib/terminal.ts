@@ -157,6 +157,29 @@ export class Terminal implements ITerminalCore {
       this.canvas.style.display = 'block';
       parent.appendChild(this.canvas);
 
+      // Create hidden textarea for clipboard operations (xterm.js pattern)
+      // This textarea will be positioned under the mouse cursor during right-clicks
+      // to enable the browser's native context menu with Copy/Paste options
+      this.textarea = document.createElement('textarea');
+      this.textarea.setAttribute('autocorrect', 'off');
+      this.textarea.setAttribute('autocapitalize', 'off');
+      this.textarea.setAttribute('spellcheck', 'false');
+      this.textarea.setAttribute('tabindex', '-1'); // Don't interfere with tab navigation
+      this.textarea.setAttribute('aria-label', 'Terminal input');
+      this.textarea.style.position = 'absolute';
+      this.textarea.style.left = '0';
+      this.textarea.style.top = '0';
+      this.textarea.style.width = '0';
+      this.textarea.style.height = '0';
+      this.textarea.style.zIndex = '-10';
+      this.textarea.style.opacity = '0';
+      this.textarea.style.overflow = 'hidden';
+      this.textarea.style.pointerEvents = 'none'; // Don't interfere with mouse events normally
+      this.textarea.style.resize = 'none';
+      this.textarea.style.border = 'none';
+      this.textarea.style.outline = 'none';
+      parent.appendChild(this.textarea);
+
       // Create renderer
       this.renderer = new CanvasRenderer(this.canvas, {
         fontSize: this.options.fontSize,
@@ -192,8 +215,13 @@ export class Terminal implements ITerminalCore {
         this.customKeyEventHandler
       );
 
-      // Create selection manager
-      this.selectionManager = new SelectionManager(this, this.renderer, this.wasmTerm);
+      // Create selection manager (pass textarea for context menu positioning)
+      this.selectionManager = new SelectionManager(
+        this,
+        this.renderer,
+        this.wasmTerm,
+        this.textarea
+      );
 
       // Connect selection manager to renderer
       this.renderer.setSelectionManager(this.selectionManager);
@@ -201,6 +229,16 @@ export class Terminal implements ITerminalCore {
       // Forward selection change events
       this.selectionManager.onSelectionChange(() => {
         this.selectionChangeEmitter.fire();
+      });
+
+      // Setup paste event handler on textarea
+      this.textarea.addEventListener('paste', (e: ClipboardEvent) => {
+        e.preventDefault();
+        const text = e.clipboardData?.getData('text');
+        if (text) {
+          // Use the paste() method which will handle bracketed paste mode in the future
+          this.paste(text);
+        }
       });
 
       // Setup wheel event handling for scrolling (Phase 2)

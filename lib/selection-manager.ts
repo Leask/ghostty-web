@@ -35,6 +35,7 @@ export class SelectionManager {
   private terminal: Terminal;
   private renderer: CanvasRenderer;
   private wasmTerm: GhosttyTerminal;
+  private textarea: HTMLTextAreaElement;
 
   // Selection state
   private selectionStart: { col: number; row: number } | null = null;
@@ -49,11 +50,18 @@ export class SelectionManager {
 
   // Store bound event handlers for cleanup
   private boundMouseUpHandler: ((e: MouseEvent) => void) | null = null;
+  private boundContextMenuHandler: ((e: MouseEvent) => void) | null = null;
 
-  constructor(terminal: Terminal, renderer: CanvasRenderer, wasmTerm: GhosttyTerminal) {
+  constructor(
+    terminal: Terminal,
+    renderer: CanvasRenderer,
+    wasmTerm: GhosttyTerminal,
+    textarea: HTMLTextAreaElement
+  ) {
     this.terminal = terminal;
     this.renderer = renderer;
     this.wasmTerm = wasmTerm;
+    this.textarea = textarea;
 
     // Attach mouse event listeners
     this.attachEventListeners();
@@ -253,6 +261,13 @@ export class SelectionManager {
       this.boundMouseUpHandler = null;
     }
 
+    // Clean up context menu event listener
+    if (this.boundContextMenuHandler) {
+      const canvas = this.renderer.getCanvas();
+      canvas.removeEventListener('contextmenu', this.boundContextMenuHandler);
+      this.boundContextMenuHandler = null;
+    }
+
     // Canvas event listeners will be cleaned up when canvas is removed from DOM
   }
 
@@ -345,17 +360,67 @@ export class SelectionManager {
       }
     });
 
-    // Right-click (context menu) - copy selection if exists
-    canvas.addEventListener('contextmenu', (e: MouseEvent) => {
-      e.preventDefault(); // Prevent default context menu
+    // Right-click (context menu) - position textarea to show browser's native menu
+    // This allows Copy/Paste options to appear in the context menu
+    this.boundContextMenuHandler = (e: MouseEvent) => {
+      // Position textarea at mouse cursor
+      const canvas = this.renderer.getCanvas();
+      const rect = canvas.getBoundingClientRect();
 
+      this.textarea.style.position = 'fixed';
+      this.textarea.style.left = `${e.clientX}px`;
+      this.textarea.style.top = `${e.clientY}px`;
+      this.textarea.style.width = '1px';
+      this.textarea.style.height = '1px';
+      this.textarea.style.zIndex = '1000';
+      this.textarea.style.opacity = '0';
+
+      // Enable pointer events temporarily so context menu targets the textarea
+      this.textarea.style.pointerEvents = 'auto';
+
+      // If there's a selection, populate textarea with it and select the text
       if (this.hasSelection()) {
         const text = this.getSelection();
-        if (text) {
-          this.copyToClipboard(text);
-        }
+        this.textarea.value = text;
+        this.textarea.select();
+        this.textarea.setSelectionRange(0, text.length);
+      } else {
+        // No selection - clear textarea but still show menu (for paste)
+        this.textarea.value = '';
       }
-    });
+
+      // Focus the textarea so the context menu appears on it
+      this.textarea.focus();
+
+      // After a short delay, restore the textarea to its hidden state
+      // This allows the context menu to appear first
+      setTimeout(() => {
+        // Listen for when the context menu closes (user clicks away or selects an option)
+        const resetTextarea = () => {
+          this.textarea.style.pointerEvents = 'none';
+          this.textarea.style.zIndex = '-10';
+          this.textarea.style.width = '0';
+          this.textarea.style.height = '0';
+          this.textarea.style.left = '0';
+          this.textarea.style.top = '0';
+          this.textarea.value = '';
+
+          // Remove the one-time listeners
+          document.removeEventListener('click', resetTextarea);
+          document.removeEventListener('contextmenu', resetTextarea);
+          this.textarea.removeEventListener('blur', resetTextarea);
+        };
+
+        // Reset on any of these events (menu closed)
+        document.addEventListener('click', resetTextarea, { once: true });
+        document.addEventListener('contextmenu', resetTextarea, { once: true });
+        this.textarea.addEventListener('blur', resetTextarea, { once: true });
+      }, 10);
+
+      // Don't prevent default - let browser show the context menu on the textarea
+    };
+
+    canvas.addEventListener('contextmenu', this.boundContextMenuHandler);
   }
 
   /**

@@ -51,6 +51,7 @@ export class SelectionManager {
   // Store bound event handlers for cleanup
   private boundMouseUpHandler: ((e: MouseEvent) => void) | null = null;
   private boundContextMenuHandler: ((e: MouseEvent) => void) | null = null;
+  private boundClickHandler: ((e: MouseEvent) => void) | null = null;
 
   constructor(
     terminal: Terminal,
@@ -291,6 +292,12 @@ export class SelectionManager {
       this.boundContextMenuHandler = null;
     }
 
+    // Clean up document click listener
+    if (this.boundClickHandler) {
+      document.removeEventListener('click', this.boundClickHandler);
+      this.boundClickHandler = null;
+    }
+
     // Canvas event listeners will be cleaned up when canvas is removed from DOM
   }
 
@@ -444,6 +451,21 @@ export class SelectionManager {
     };
 
     canvas.addEventListener('contextmenu', this.boundContextMenuHandler);
+
+    // Click outside canvas - clear selection
+    // This allows users to deselect by clicking anywhere outside the terminal
+    this.boundClickHandler = (e: MouseEvent) => {
+      // Check if the click is outside the canvas
+      const target = e.target as Node;
+      if (!canvas.contains(target)) {
+        // Clicked outside the canvas - clear selection
+        if (this.hasSelection()) {
+          this.clearSelection();
+        }
+      }
+    };
+
+    document.addEventListener('click', this.boundClickHandler);
   }
 
   /**

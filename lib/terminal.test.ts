@@ -666,6 +666,29 @@ describe('select()', () => {
       expect(fired).toBe(true);
       term.dispose();
     });
+
+    test('should clear selection when clicking outside canvas', async () => {
+      const term = new Terminal({ cols: 80, rows: 24 });
+      // Using shared container from beforeEach
+      if (!container) return;
+      await term.open(container);
+
+      // Create a selection
+      term.select(0, 0, 10);
+      expect(term.hasSelection()).toBe(true);
+
+      // Simulate click outside the canvas (on document body)
+      const clickEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+      });
+      document.body.dispatchEvent(clickEvent);
+
+      // Selection should be cleared
+      expect(term.hasSelection()).toBe(false);
+      term.dispose();
+    });
   });
 });
 

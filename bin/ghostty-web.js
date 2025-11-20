@@ -191,7 +191,7 @@ const HTML_TEMPLATE = `<!doctype html>
           updateConnectionStatus(true);
           
           // Send initial newline to trigger prompt
-          ws.send('\n');
+          ws.send('\\\\n');
         };
 
         ws.onmessage = (event) => {

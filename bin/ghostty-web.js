@@ -402,7 +402,10 @@ function handlePTYSession(ws, req) {
 
   const shell = process.env.SHELL || (process.platform === 'win32' ? 'cmd.exe' : '/bin/bash');
 
-  const ptyProcess = spawn(shell, [], {
+  // Use shell with interactive flag to get proper shell behavior
+  const shellArgs = process.platform === 'win32' ? [] : ['-i'];
+
+  const ptyProcess = spawn(shell, shellArgs, {
     cwd: homedir(),
     env: {
       ...process.env,

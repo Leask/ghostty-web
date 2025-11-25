@@ -749,7 +749,7 @@ export class SelectionManager {
 
   /**
    * Normalize selection coordinates (handle backward selection)
-   * Returns coordinates in VIEWPORT space for rendering
+   * Returns coordinates in VIEWPORT space for rendering, clamped to visible area
    */
   private normalizeSelection(): SelectionCoordinates | null {
     if (!this.selectionStart || !this.selectionEnd) return null;
@@ -764,8 +764,27 @@ export class SelectionManager {
     }
 
     // Convert to viewport coordinates
-    const startRow = this.absoluteRowToViewport(startAbsRow);
-    const endRow = this.absoluteRowToViewport(endAbsRow);
+    let startRow = this.absoluteRowToViewport(startAbsRow);
+    let endRow = this.absoluteRowToViewport(endAbsRow);
+
+    // Clamp to visible viewport range
+    const dims = this.wasmTerm.getDimensions();
+    const maxRow = dims.rows - 1;
+
+    // If entire selection is outside viewport, return null
+    if (endRow < 0 || startRow > maxRow) {
+      return null;
+    }
+
+    // Clamp rows to visible range, adjusting columns for partial rows
+    if (startRow < 0) {
+      startRow = 0;
+      startCol = 0; // Selection starts from beginning of first visible row
+    }
+    if (endRow > maxRow) {
+      endRow = maxRow;
+      endCol = dims.cols - 1; // Selection extends to end of last visible row
+    }
 
     return { startCol, startRow, endCol, endRow };
   }

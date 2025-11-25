@@ -209,18 +209,27 @@ jobs:
           if [[ "${{ steps.detect.outputs.is_tag }}" == "true" ]]; then
             NPM_VERSION="${BASE_VERSION}"
             NPM_TAG="latest"
+            GHOSTTY_WEB_DEP="^${BASE_VERSION}"
           else
             GIT_COMMIT=$(git rev-parse --short HEAD)
             COMMITS_SINCE_TAG=$(git rev-list --count HEAD ^$(git describe --tags --abbrev=0 2>/dev/null || echo HEAD) 2>/dev/null || echo "0")
             NPM_VERSION="${BASE_VERSION}-next.${COMMITS_SINCE_TAG}.g${GIT_COMMIT}"
             NPM_TAG="next"
+            GHOSTTY_WEB_DEP="next"
           fi
 
           echo "version=${NPM_VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${NPM_TAG}" >> $GITHUB_OUTPUT
 
-          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json')); pkg.version = '${NPM_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');"
-          echo "Updated demo/server/package.json to version ${NPM_VERSION}"
+          # Update version and ghostty-web dependency
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json'));
+            pkg.version = '${NPM_VERSION}';
+            pkg.dependencies['ghostty-web'] = '${GHOSTTY_WEB_DEP}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Updated demo package.json: version=${NPM_VERSION}, ghostty-web=${GHOSTTY_WEB_DEP}"
 
       - name: Check if demo version exists
         id: check-exists

@@ -239,22 +239,13 @@ export class InputHandler {
     this.container.addEventListener('paste', this.pasteListener);
 
     this.compositionStartListener = this.handleCompositionStart.bind(this);
-    this.container.addEventListener(
-      'compositionstart',
-      this.compositionStartListener
-    );
+    this.container.addEventListener('compositionstart', this.compositionStartListener);
 
     this.compositionUpdateListener = this.handleCompositionUpdate.bind(this);
-    this.container.addEventListener(
-      'compositionupdate',
-      this.compositionUpdateListener
-    );
+    this.container.addEventListener('compositionupdate', this.compositionUpdateListener);
 
     this.compositionEndListener = this.handleCompositionEnd.bind(this);
-    this.container.addEventListener(
-      'compositionend',
-      this.compositionEndListener
-    );
+    this.container.addEventListener('compositionend', this.compositionEndListener);
   }
 
   /**
@@ -587,26 +578,17 @@ export class InputHandler {
     }
 
     if (this.compositionStartListener) {
-      this.container.removeEventListener(
-        'compositionstart',
-        this.compositionStartListener
-      );
+      this.container.removeEventListener('compositionstart', this.compositionStartListener);
       this.compositionStartListener = null;
     }
 
     if (this.compositionUpdateListener) {
-      this.container.removeEventListener(
-        'compositionupdate',
-        this.compositionUpdateListener
-      );
+      this.container.removeEventListener('compositionupdate', this.compositionUpdateListener);
       this.compositionUpdateListener = null;
     }
 
     if (this.compositionEndListener) {
-      this.container.removeEventListener(
-        'compositionend',
-        this.compositionEndListener
-      );
+      this.container.removeEventListener('compositionend', this.compositionEndListener);
       this.compositionEndListener = null;
     }
 

@@ -52,8 +52,8 @@ function createKeyEvent(
     shiftKey: modifiers.shift ?? false,
     metaKey: modifiers.meta ?? false,
     repeat: false,
-    preventDefault: mock(() => { }),
-    stopPropagation: mock(() => { }),
+    preventDefault: mock(() => {}),
+    stopPropagation: mock(() => {}),
   };
 }
 
@@ -69,14 +69,14 @@ function createClipboardEvent(text: string | null): MockClipboardEvent {
     clipboardData:
       text !== null
         ? {
-          getData: (format: string) => data.get(format) || '',
-          setData: (format: string, value: string) => {
-            data.set(format, value);
-          },
-        }
+            getData: (format: string) => data.get(format) || '',
+            setData: (format: string, value: string) => {
+              data.set(format, value);
+            },
+          }
         : null,
-    preventDefault: mock(() => { }),
-    stopPropagation: mock(() => { }),
+    preventDefault: mock(() => {}),
+    stopPropagation: mock(() => {}),
   };
 }
 interface MockCompositionEvent {
@@ -94,8 +94,8 @@ function createCompositionEvent(
   return {
     type,
     data,
-    preventDefault: mock(() => { }),
-    stopPropagation: mock(() => { }),
+    preventDefault: mock(() => {}),
+    stopPropagation: mock(() => {}),
   };
 }
 // Helper to create mock container
@@ -140,7 +140,7 @@ function createMockContainer(): MockHTMLElement & {
     appendChild(node: Node) {
       this.childNodes.push(node);
       return node;
-    }
+    },
   };
 }
 

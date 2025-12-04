@@ -33,6 +33,9 @@ interface MockClipboardEvent {
 interface MockHTMLElement {
   addEventListener: (event: string, handler: (e: any) => void) => void;
   removeEventListener: (event: string, handler: (e: any) => void) => void;
+  childNodes: Node[];
+  removeChild: (node: Node) => Node;
+  appendChild: (node: Node) => Node;
 }
 
 // Helper to create mock keyboard event
@@ -125,6 +128,19 @@ function createMockContainer(): MockHTMLElement & {
         handler(event);
       }
     },
+    // Mock childNodes and removeChild for text node cleanup test
+    childNodes: [] as Node[],
+    removeChild(node: Node) {
+      const index = this.childNodes.indexOf(node);
+      if (index >= 0) {
+        this.childNodes.splice(index, 1);
+      }
+      return node;
+    },
+    appendChild(node: Node) {
+      this.childNodes.push(node);
+      return node;
+    }
   };
 }
 
@@ -352,6 +368,36 @@ describe('InputHandler', () => {
       // End composition
       container.dispatchEvent(createCompositionEvent('compositionend', 'a'));
       expect(dataReceived).toEqual(['a']);
+    });
+
+    test('cleans up text nodes in container after composition', () => {
+      const handler = new InputHandler(
+        ghostty,
+        container as any,
+        (data) => dataReceived.push(data),
+        () => {
+          bellCalled = true;
+        }
+      );
+
+      // Simulate browser inserting text node during composition
+      const textNode = { nodeType: 3, textContent: '你好' } as Node;
+      container.appendChild(textNode);
+
+      // Also add a non-text node (e.g. canvas) to ensure it's not removed
+      const elementNode = { nodeType: 1, nodeName: 'CANVAS' } as Node;
+      container.appendChild(elementNode);
+
+      expect(container.childNodes.length).toBe(2);
+
+      // End composition
+      const endEvent = createCompositionEvent('compositionend', '你好');
+      container.dispatchEvent(endEvent);
+
+      // Should have removed the text node but kept the element node
+      expect(container.childNodes.length).toBe(1);
+      expect(container.childNodes[0]).toBe(elementNode);
+      expect(dataReceived).toEqual(['你好']);
     });
   });
 

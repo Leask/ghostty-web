@@ -550,6 +550,19 @@ export class InputHandler {
     if (data && data.length > 0) {
       this.onDataCallback(data);
     }
+
+    // Cleanup text nodes in container (fix for duplicate text display)
+    // When the container is contenteditable, the browser might insert text nodes
+    // upon composition end. We need to remove them to prevent duplicate display.
+    if (this.container && this.container.childNodes) {
+      for (let i = this.container.childNodes.length - 1; i >= 0; i--) {
+        const node = this.container.childNodes[i];
+        // Node.TEXT_NODE === 3
+        if (node.nodeType === 3) {
+          this.container.removeChild(node);
+        }
+      }
+    }
   }
 
   /**
